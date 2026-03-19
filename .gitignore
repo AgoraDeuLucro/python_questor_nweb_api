@@ -1,0 +1,6 @@
+venv/
+tests/
+*test*
+*.pyc
+.directory
+automacao_input

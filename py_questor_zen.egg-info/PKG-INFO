@@ -1,3 +1,16 @@
+Metadata-Version: 2.1
+Name: py-questor-zen
+Version: 0.0.1
+Summary: Wrapper não oficial do Questor Zen
+Home-page: UNKNOWN
+Author: Yuri Gomes
+Author-email: yuri.gomes@grupobpo.com.br
+License: MIT License
+Keywords: questor,zen
+Platform: UNKNOWN
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
 # python_bling_api
  
 # Material de apoio
@@ -113,3 +126,4 @@ Ou para criar um repositório oficial:
 ```plain
 twine upload dist/*
 ```
+
