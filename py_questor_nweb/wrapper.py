@@ -225,6 +225,31 @@ class relatorios(nweb):
         return self.executar("nFisRRProduto", tipo_retorno=tipo_retorno, body=body, method="GET")
 
 
+class menus(nweb):
+    """Acesso aos menus do Questor nWeb via /TnWebDMMenus/Pegar."""
+
+    def pegar(self, tipo: int = 4) -> dict:
+        """
+        Retorna os menus disponíveis no Questor nWeb.
+
+        Args:
+            tipo: Tipo do menu (padrão: 4)
+
+        Returns:
+            dict: Resposta JSON da API ou dict vazio se falhou
+
+        Exemplo:
+            client = menus(base_url="http://servidor:7080")
+            resultado = client.pegar(tipo=4)
+        """
+        url = f"{self.base_url}/TnWebDMMenus/Pegar"
+        params = {"_ATipo": tipo}
+        response = self.request("GET", url=url, params=params)
+        if not response:
+            return {}
+        return response.json()
+
+
 class importacao(nweb):
     """Importação de documentos fiscais via /TnWebDMProcesso/ProcessoExecutar."""
 
