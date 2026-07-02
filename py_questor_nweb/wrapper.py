@@ -366,3 +366,163 @@ class importacao(nweb):
             },
         }
         return self.processar(action, body)
+
+    def importar_nfse(
+        self,
+        codigo_empresa: str,
+        codigo_estab: str,
+        data_inicial: str,
+        data_final: str,
+        pImportar: str,
+        pIntegrar: str,
+        pDataImportacao: str,
+        pImportarProduto: str,
+        pTratamentoErro: str,
+        pCfopRetidos: str,
+        pCodigoImpostoIRRF: str,
+        pVariacaoImpostoIRRF: str,
+        pCodigoImpostoPIS: str,
+        pVariacaoImpostoPIS: str,
+        pCodigoImpostoCOFINS: str,
+        pVariacaoImpostoCOFINS: str,
+        pCodigoImpostoCSLL: str,
+        pVariacaoImpostoCSLL: str,
+        pTipoProcessamento: str,
+        pValidaEstab: str,
+        pConverterArquivos: str,
+        pTipo: str,
+        pNomeArquivo: str,
+        nome_zip: str,
+        base64_zip: str,
+        pSugerirRelacDescrServico: str = "0",
+        pImportarPISCOFINSOUTROS: str = "0",
+        pImportarProdutoPadrao: str = "0",
+        pCodigoProdutoPadrao: str = "",
+        pSubSerie: str = "",
+        pPessoa: str = "",
+        pCfop: str = "",
+        pCodigoNfseLayout: str = "",
+        pConverterArquivoLote: str = "0",
+        **kwargs,
+    ) -> dict:
+        """
+        Importa Notas Fiscais de Serviço (NFS-e) via TnArqDPImportarArqNFEMunicLayout.
+
+        Args:
+            codigo_empresa: Código da empresa (pCodigoEmpresa)
+            codigo_estab: Código da filial (pCodigoEstab)
+            data_inicial: Data inicial dos lançamentos a importar, formato DD/MM/AAAA (pDataInicial)
+            data_final: Data final dos lançamentos a importar, formato DD/MM/AAAA (pDataFinal)
+            pImportar: Tipo de movimento — "1"=Emitidas (Saídas), "2"=Recebidas (Entradas)
+            pIntegrar: Tipo de integração — "0"=Tributado, "1"=Isentas, "2"=Outras
+            pDataImportacao: Data considerada na importação — "1"=Data Emissão, "2"=Data RPS/Prestação
+            pImportarProduto: Relacionamento dos serviços com produto — "0"=Não, "1"=Sim
+            pTratamentoErro: Tratamento de erros — "0"=Cancela tudo se houver erro, "1"=Importa sem erros e exibe relatório
+            pCfopRetidos: Código da operação fiscal (CFOP) para os retidos
+            pCodigoImpostoIRRF: Código do imposto IRRF a recolher
+            pVariacaoImpostoIRRF: Variação do imposto IRRF a recolher
+            pCodigoImpostoPIS: Código do imposto PIS a recolher (enviado como pCodigo)
+            pVariacaoImpostoPIS: Variação do imposto PIS a recolher
+            pCodigoImpostoCOFINS: Código do imposto COFINS a recolher
+            pVariacaoImpostoCOFINS: Variação do imposto COFINS a recolher
+            pCodigoImpostoCSLL: Código do imposto CSLL a recolher
+            pVariacaoImpostoCSLL: Variação do imposto CSLL a recolher
+            pTipoProcessamento: Tipo de processamento — "2"=Somente não importados, "3"=Excluir e importar novamente
+            pValidaEstab: Valida empresa/filial com o emitente do arquivo
+            pConverterArquivos: Converte arquivos para layout padrão — "0"=Não, "1"=Sim
+            pTipo: Origem da importação — "1"=Um único arquivo, "2"=Vários arquivos
+            pNomeArquivo: Caminho completo do arquivo quando pTipo="1" (ex: D:\\pasta\\arquivo.txt);
+                apenas o nome do arquivo quando pTipo="2"
+            nome_zip: Nome do arquivo ZIP compactado (pNomePasta_DIRABRIR.filename)
+            base64_zip: Conteúdo do ZIP em base64 (pNomePasta_DIRABRIR.data)
+            pSugerirRelacDescrServico: Sugerir relacionamento pela descrição do serviço — "0"=Não, "1"=Sim (padrão: "0")
+            pImportarPISCOFINSOUTROS: Importar PIS/Cofins — "0"=Não, "1"=Com sugestão automática,
+                "2"=Sem sugestão automática (padrão: "0")
+            pImportarProdutoPadrao: Importar NFS-e com único serviço — "0"=Apenas por fornecedor,
+                "1"=Fornecedor/NF (padrão: "0")
+            pCodigoProdutoPadrao: Código do produto padrão (padrão: "")
+            pSubSerie: Sub-série (padrão: "")
+            pPessoa: Código da pessoa (padrão: "")
+            pCfop: Código da operação fiscal (CFOP) (padrão: "")
+            pCodigoNfseLayout: Layout de NFS-e; usar "180" quando pConverterArquivos="1"
+                (Sistema Nota do Milhão - NFTS - v4.90) (padrão: "")
+            pConverterArquivoLote: (padrão: "0")
+            **kwargs: Parâmetros adicionais repassados ao body da requisição
+
+        Returns:
+            dict: Resposta JSON da API ou dict vazio se falhou
+
+        Exemplo:
+            client = importacao(base_url="http://servidor:7080")
+            nome_zip, b64 = importacao.criar_zip_base64(["NFTS_98414666_20240701_20240731.txt"])
+            resultado = client.importar_nfse(
+                codigo_empresa="6",
+                codigo_estab="1",
+                data_inicial="01/07/2024",
+                data_final="30/07/2024",
+                pImportar="2",
+                pIntegrar="2",
+                pDataImportacao="2",
+                pImportarProduto="0",
+                pTratamentoErro="1",
+                pCfopRetidos="1113001",
+                pCodigoImpostoIRRF="1708",
+                pVariacaoImpostoIRRF="6",
+                pCodigoImpostoPIS="5952",
+                pVariacaoImpostoPIS="3",
+                pCodigoImpostoCOFINS="5952",
+                pVariacaoImpostoCOFINS="7",
+                pCodigoImpostoCSLL="5952",
+                pVariacaoImpostoCSLL="7",
+                pTipoProcessamento="3",
+                pValidaEstab="0",
+                pConverterArquivos="1",
+                pCodigoNfseLayout="180",
+                pTipo="1",
+                pNomeArquivo="D:\\Costoya\\NFTS_98414666_20240701_20240731.txt",
+                nome_zip=nome_zip,
+                base64_zip=b64,
+                pPessoa="1200",
+                pCfop="1102010",
+            )
+        """
+        body = {
+            "pCodigoEmpresa": codigo_empresa,
+            "pCodigoEstab": codigo_estab,
+            "pDataInicial": data_inicial,
+            "pDataFinal": data_final,
+            "pImportar": pImportar,
+            "pIntegrar": pIntegrar,
+            "pDataImportacao": pDataImportacao,
+            "pImportarProduto": pImportarProduto,
+            "pSugerirRelacDescrServico": pSugerirRelacDescrServico,
+            "pImportarPISCOFINSOUTROS": pImportarPISCOFINSOUTROS,
+            "pImportarProdutoPadrao": pImportarProdutoPadrao,
+            "pCodigoProdutoPadrao": pCodigoProdutoPadrao,
+            "pSubSerie": pSubSerie,
+            "pPessoa": pPessoa,
+            "pTratamentoErro": pTratamentoErro,
+            "pCfop": pCfop,
+            "pCfopRetidos": pCfopRetidos,
+            "pCodigoImpostoIRRF": pCodigoImpostoIRRF,
+            "pVariacaoImpostoIRRF": pVariacaoImpostoIRRF,
+            "pCodigo": pCodigoImpostoPIS,
+            "pVariacaoImpostoPIS": pVariacaoImpostoPIS,
+            "pCodigoImpostoCOFINS": pCodigoImpostoCOFINS,
+            "pVariacaoImpostoCOFINS": pVariacaoImpostoCOFINS,
+            "pCodigoImpostoCSLL": pCodigoImpostoCSLL,
+            "pVariacaoImpostoCSLL": pVariacaoImpostoCSLL,
+            "pTipoProcessamento": pTipoProcessamento,
+            "pValidaEstab": pValidaEstab,
+            "pConverterArquivos": pConverterArquivos,
+            "pCodigoNfseLayout": pCodigoNfseLayout,
+            "pTipo": pTipo,
+            "pConverterArquivoLote": pConverterArquivoLote,
+            "pNomeArquivo": pNomeArquivo,
+            "pNomePasta_DIRABRIR": {
+                "filename": nome_zip,
+                "data": base64_zip,
+            },
+            **kwargs,
+        }
+        return self.processar(self.ACTIONS["NFSe"], body)
