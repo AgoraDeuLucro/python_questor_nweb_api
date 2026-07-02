@@ -9,34 +9,30 @@ import requests
 
 
 class nweb:
-    """Cliente base para a API REST do Questor nWeb."""
-
-    def __init__(self, base_url: str, print_error: bool = True):
-        """
-        Args:
-            base_url: URL base do servidor nWeb, ex: "http://servidor:7080"
-            print_error: Se True, imprime erros no console (padrão: True)
-        """
+    def __init__(self, base_url: str, print_error: bool = True,
+                 headers: dict | None = None, timeout: float | None = None):
         self.base_url = base_url.rstrip("/")
         self.print_error = print_error
+        self._headers = headers or {}
+        self._timeout = timeout
 
     def request(self, method="GET", url="", params=None, data=None):
         req_params = params if params is not None else {}
         req_data = data if data is not None else {}
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", **self._headers}
 
         while True:
             match method:
                 case "GET":
-                    response = requests.get(url=url, params=req_params, headers=headers, json=req_data or None)
+                    response = requests.get(url=url, params=req_params, headers=headers, json=req_data or None, timeout=self._timeout)
                 case "PUT":
-                    response = requests.put(url=url, params=req_params, headers=headers, json=req_data or None)
+                    response = requests.put(url=url, params=req_params, headers=headers, json=req_data or None, timeout=self._timeout)
                 case "POST":
-                    response = requests.post(url=url, params=req_params, headers=headers, json=req_data or None)
+                    response = requests.post(url=url, params=req_params, headers=headers, json=req_data or None, timeout=self._timeout)
                 case "DELETE":
-                    response = requests.delete(url=url, params=req_params, headers=headers, json=req_data or None)
+                    response = requests.delete(url=url, params=req_params, headers=headers, json=req_data or None, timeout=self._timeout)
                 case "PATCH":
-                    response = requests.patch(url=url, params=req_params, headers=headers, json=req_data or None)
+                    response = requests.patch(url=url, params=req_params, headers=headers, json=req_data or None, timeout=self._timeout)
                 case _:
                     raise ValueError(f"Método HTTP '{method}' não suportado")
 
