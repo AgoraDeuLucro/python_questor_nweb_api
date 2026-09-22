@@ -522,3 +522,176 @@ class importacao(nweb):
             **kwargs,
         }
         return self.processar(self.ACTIONS["NFSe"], body)
+
+
+class consulta(nweb):
+    """Consulta de lançamentos fiscais via /TnWebDMProcesso/ProcessoExecutar."""
+
+    def processar(self, action_name: str, body: dict, method: str = "GET") -> dict:
+        """
+        Executa um processo genérico de consulta.
+
+        Args:
+            action_name: Nome da action, ex: "nFisNFSaidas"
+            body: Corpo da requisição com os parâmetros do processo
+            method: Método HTTP (padrão: "GET")
+
+        Returns:
+            dict: Resposta JSON da API ou dict vazio se falhou
+        """
+        url = f"{self.base_url}/TnWebDMProcesso/ProcessoExecutar"
+        params = {"_AActionName": action_name}
+        response = self.request(method, url=url, params=params, data=body)
+        if not response:
+            return {}
+        return response.json()
+
+    @staticmethod
+    def _extrair_items(response_json: dict) -> list:
+        """Extrai a lista de items do grid aninhado em Widgets.bottom[0].Itens[0].grids[0].items."""
+        try:
+            return response_json["Widgets"]["bottom"][0]["Itens"][0]["grids"][0]["items"]
+        except (KeyError, IndexError, TypeError):
+            return []
+
+    def saidas_nf(
+        self,
+        codigo_empresa: str | int,
+        codigo_estab: str | int,
+        data_ini: str,
+        data_fim: str,
+        **kwargs,
+    ) -> list:
+        """
+        Consulta lançamentos de saída via nFisNFSaidas.
+
+        Args:
+            codigo_empresa: Código da empresa (CODIGOEMPRESA)
+            codigo_estab: Código do estabelecimento (CODIGOESTAB)
+            data_ini: Data inicial no formato DD/MM/AAAA (DATAINI)
+            data_fim: Data final no formato DD/MM/AAAA (DATAFIM)
+            **kwargs: Parâmetros adicionais do body
+
+        Returns:
+            list: Lista de lançamentos (items do grid), ou lista vazia se falhou
+
+        Campos típicos: CHAVELCTOFISSAI, CODIGOPESSOA, NOMEPESSOA, INSCRFEDERAL,
+        NUMERONF, ESPECIENF, SERIENF, SUBSERIENF, DATALCTOFIS, VALORCONTABIL,
+        CDMODELO, CODIGOSAT, CHAVENFESAI, EMITENTENF
+
+        Exemplo:
+            client = consulta(base_url="http://servidor:7080")
+            items = client.saidas_nf("5353", "1", "31/08/2026", "31/08/2026")
+        """
+        body = {
+            "CODIGOEMPRESA": str(codigo_empresa),
+            "CODIGOESTAB": str(codigo_estab),
+            "DATAINI": data_ini,
+            "DATAFIM": data_fim,
+            **kwargs,
+        }
+        return self._extrair_items(self.processar("nFisNFSaidas", body))
+
+    def entradas_nf(
+        self,
+        codigo_empresa: str | int,
+        codigo_estab: str | int,
+        data_ini: str,
+        data_fim: str,
+        **kwargs,
+    ) -> list:
+        """
+        Consulta lançamentos de entrada via nFisNFEntradas.
+
+        Args:
+            codigo_empresa: Código da empresa (CODIGOEMPRESA)
+            codigo_estab: Código do estabelecimento (CODIGOESTAB)
+            data_ini: Data inicial no formato DD/MM/AAAA (DATAINI)
+            data_fim: Data final no formato DD/MM/AAAA (DATAFIM)
+            **kwargs: Parâmetros adicionais do body
+
+        Returns:
+            list: Lista de lançamentos (items do grid), ou lista vazia se falhou
+
+        Campos típicos: iguais a saidas_nf, exceto sem CODIGOSAT
+
+        Exemplo:
+            client = consulta(base_url="http://servidor:7080")
+            items = client.entradas_nf("5353", "1", "31/08/2026", "31/08/2026")
+        """
+        body = {
+            "CODIGOEMPRESA": str(codigo_empresa),
+            "CODIGOESTAB": str(codigo_estab),
+            "DATAINI": data_ini,
+            "DATAFIM": data_fim,
+            **kwargs,
+        }
+        return self._extrair_items(self.processar("nFisNFEntradas", body))
+
+    def saidas_dp(
+        self,
+        codigo_empresa: str | int,
+        codigo_estab: str | int,
+        data_ini: str,
+        data_fim: str,
+        **kwargs,
+    ) -> dict:
+        """
+        Consulta lançamentos de saída via TnFisDPConsultaLctoSai (rota antiga).
+
+        Args:
+            codigo_empresa: Código da empresa (CODIGOEMPRESA)
+            codigo_estab: Código do estabelecimento (CODIGOESTAB)
+            data_ini: Data inicial no formato DD/MM/AAAA (DATAINI)
+            data_fim: Data final no formato DD/MM/AAAA (DATAFIM)
+            **kwargs: Parâmetros adicionais do body
+
+        Returns:
+            dict: Resposta JSON bruta da API ou dict vazio se falhou
+
+        Exemplo:
+            client = consulta(base_url="http://servidor:7080")
+            resultado = client.saidas_dp("5353", "1", "31/08/2026", "31/08/2026")
+        """
+        body = {
+            "CODIGOEMPRESA": str(codigo_empresa),
+            "CODIGOESTAB": str(codigo_estab),
+            "DATAINI": data_ini,
+            "DATAFIM": data_fim,
+            **kwargs,
+        }
+        return self.processar("TnFisDPConsultaLctoSai", body)
+
+    def entradas_dp(
+        self,
+        codigo_empresa: str | int,
+        codigo_estab: str | int,
+        data_ini: str,
+        data_fim: str,
+        **kwargs,
+    ) -> dict:
+        """
+        Consulta lançamentos de entrada via TnFisDPConsultaLctoEnt (rota antiga).
+
+        Args:
+            codigo_empresa: Código da empresa (CODIGOEMPRESA)
+            codigo_estab: Código do estabelecimento (CODIGOESTAB)
+            data_ini: Data inicial no formato DD/MM/AAAA (DATAINI)
+            data_fim: Data final no formato DD/MM/AAAA (DATAFIM)
+            **kwargs: Parâmetros adicionais do body
+
+        Returns:
+            dict: Resposta JSON bruta da API ou dict vazio se falhou
+
+        Exemplo:
+            client = consulta(base_url="http://servidor:7080")
+            resultado = client.entradas_dp("5353", "1", "31/08/2026", "31/08/2026")
+        """
+        body = {
+            "CODIGOEMPRESA": str(codigo_empresa),
+            "CODIGOESTAB": str(codigo_estab),
+            "DATAINI": data_ini,
+            "DATAFIM": data_fim,
+            **kwargs,
+        }
+        return self.processar("TnFisDPConsultaLctoEnt", body)

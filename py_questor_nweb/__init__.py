@@ -1,1 +1,1 @@
-from .wrapper import relatorios, importacao
+from .wrapper import relatorios, importacao, consulta
