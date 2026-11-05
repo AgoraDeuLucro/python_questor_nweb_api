@@ -1,1 +1,1 @@
-from .wrapper import relatorios, importacao, consulta
+from .wrapper import relatorios, importacao, consulta, integracao, Leiaute

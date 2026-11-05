@@ -2,10 +2,63 @@ import base64
 import io
 import os
 import zipfile
+from dataclasses import dataclass
 from datetime import datetime
 from time import sleep
 
 import requests
+
+
+@dataclass
+class Leiaute:
+    """Layout de importação (.nli) enviado em `leiautes` no POST /Integracao/Importar."""
+
+    nome: str
+    arquivo: str
+
+    @classmethod
+    def from_file(cls, caminho: str) -> "Leiaute":
+        """Lê um arquivo .nli do disco e codifica o conteúdo em base64.
+
+        Args:
+            caminho: Caminho do arquivo .nli
+
+        Returns:
+            Leiaute com `nome` igual ao nome do arquivo e `arquivo` em base64
+        """
+        with open(caminho, "rb") as arq:
+            conteudo = arq.read()
+        return cls.from_bytes(os.path.basename(caminho), conteudo)
+
+    @classmethod
+    def from_bytes(cls, nome: str, conteudo: bytes) -> "Leiaute":
+        """Monta um layout a partir de bytes já lidos.
+
+        Args:
+            nome: Nome do layout, ex: "C_LctoCtb.nli"
+            conteudo: Conteúdo binário do arquivo .nli
+
+        Returns:
+            Leiaute com o conteúdo codificado em base64
+        """
+        return cls(nome=nome, arquivo=base64.b64encode(conteudo).decode("ascii"))
+
+    @classmethod
+    def from_base64(cls, nome: str, b64: str) -> "Leiaute":
+        """Monta um layout a partir de uma string base64 já pronta.
+
+        Args:
+            nome: Nome do layout, ex: "C_LctoCtb.nli"
+            b64: Conteúdo do .nli já em base64
+
+        Returns:
+            Leiaute usando o base64 informado
+        """
+        return cls(nome=nome, arquivo=b64)
+
+    def to_dict(self) -> dict:
+        """Retorna o par `{nome, arquivo}` esperado pela API."""
+        return {"nome": self.nome, "arquivo": self.arquivo}
 
 
 class nweb:
@@ -695,3 +748,157 @@ class consulta(nweb):
             **kwargs,
         }
         return self.processar("TnFisDPConsultaLctoEnt", body)
+
+
+class integracao(nweb):
+    """Importação genérica via POST /Integracao/Importar."""
+
+    _CAMPOS_LCTO_CTB = (
+        "chave_lcto",
+        "inscr_federal",
+        "data",
+        "lote",
+        "num_doc",
+        "conta_deb",
+        "desc_conta_deb",
+        "conta_cred",
+        "desc_conta_cred",
+        "valor",
+        "codigo_hist",
+        "compl_hist",
+    )
+    _CAMPOS_LCTO_CTB_OBRIGATORIOS = (
+        "chave_lcto",
+        "inscr_federal",
+        "data",
+        "conta_deb",
+        "valor",
+    )
+
+    @staticmethod
+    def _normalizar_leiaute(leiaute: Leiaute | dict) -> dict:
+        if isinstance(leiaute, Leiaute):
+            return leiaute.to_dict()
+        if isinstance(leiaute, dict) and "nome" in leiaute and "arquivo" in leiaute:
+            return {"nome": leiaute["nome"], "arquivo": leiaute["arquivo"]}
+        raise TypeError(
+            "Cada layout deve ser um Leiaute ou um dict com as chaves 'nome' e 'arquivo'"
+        )
+
+    @staticmethod
+    def _codificar_dados(dados: str | bytes) -> str:
+        if isinstance(dados, str):
+            conteudo = dados.encode("latin-1")
+        elif isinstance(dados, bytes):
+            conteudo = dados
+        else:
+            raise TypeError("dados deve ser str ou bytes")
+        return base64.b64encode(conteudo).decode("ascii")
+
+    @classmethod
+    def _montar_linha_lcto_ctb(cls, lancamento: dict) -> str:
+        faltando = [
+            campo
+            for campo in cls._CAMPOS_LCTO_CTB_OBRIGATORIOS
+            if str(lancamento.get(campo, "") or "").strip() == ""
+        ]
+        if faltando:
+            raise ValueError(
+                "Lançamento sem campos obrigatórios: " + ", ".join(faltando)
+            )
+        return ";".join(
+            str(lancamento.get(campo, "") or "") for campo in cls._CAMPOS_LCTO_CTB
+        )
+
+    def importar(
+        self,
+        leiautes: list[Leiaute | dict],
+        dados: str | bytes,
+        filtro: str = "",
+        pode_alterar_dados: bool = True,
+        executar_validacao_final: bool = True,
+    ) -> dict:
+        """
+        Envia layouts e dados para POST /Integracao/Importar.
+
+        Args:
+            leiautes: Lista de Leiaute ou dicts `{nome, arquivo}` (arquivo em base64)
+            dados: Texto CSV (ou bytes) separado por `;`. O método codifica em base64
+            filtro: Filtro da importação (padrão: "")
+            pode_alterar_dados: Permite alterar dados já existentes (padrão: True)
+            executar_validacao_final: Executa a validação final da importação (padrão: True)
+
+        Returns:
+            dict: Resposta JSON da API ou dict vazio se falhou
+
+        Exemplo:
+            leiaute = Leiaute.from_file("/layouts/C_LctoCtb.nli")
+            client = integracao(base_url="http://servidor:8080")
+            resultado = client.importar(
+                leiautes=[leiaute],
+                dados="$99688;39.986.148/0001-82;26/07/2026;;;5003;;;;1000;0;;\\r\\n",
+            )
+        """
+        body = {
+            "leiautes": [self._normalizar_leiaute(item) for item in leiautes],
+            "filtro": filtro,
+            "dados": self._codificar_dados(dados),
+            "podealterardados": pode_alterar_dados,
+            "executarvalidacaofinal": executar_validacao_final,
+        }
+        url = f"{self.base_url}/Integracao/Importar"
+        response = self.request("POST", url=url, data=body)
+        if not response:
+            return {}
+        return response.json()
+
+    def excluir_lancamentos_ctb(
+        self,
+        lancamentos: list[dict],
+        leiaute: Leiaute | dict,
+        filtro: str = "",
+        pode_alterar_dados: bool = True,
+        executar_validacao_final: bool = True,
+    ) -> dict:
+        """
+        Exclui lançamentos contábeis montando o CSV do layout C_LctoCtb.nli.
+
+        O layout não é embutido: carregue o `.nli` com `Leiaute.from_file`,
+        `Leiaute.from_bytes` ou `Leiaute.from_base64`.
+
+        Args:
+            lancamentos: Lista de dicts. Obrigatórios: chave_lcto, inscr_federal,
+                data, conta_deb, valor. Opcionais: lote, num_doc, desc_conta_deb,
+                conta_cred, desc_conta_cred, codigo_hist, compl_hist
+            leiaute: Layout `.nli` da importação
+            filtro: Filtro da importação (padrão: "")
+            pode_alterar_dados: Permite alterar dados já existentes (padrão: True)
+            executar_validacao_final: Executa a validação final (padrão: True)
+
+        Returns:
+            dict: Resposta JSON da API ou dict vazio se falhou
+
+        Exemplo:
+            leiaute = Leiaute.from_file("/layouts/C_LctoCtb.nli")
+            client = integracao(base_url="http://servidor:8080")
+            resultado = client.excluir_lancamentos_ctb(
+                leiaute=leiaute,
+                lancamentos=[{
+                    "chave_lcto": "$99688",
+                    "inscr_federal": "39.986.148/0001-82",
+                    "data": "26/07/2026",
+                    "conta_deb": "5003",
+                    "valor": "1000",
+                    "codigo_hist": "0",
+                }],
+            )
+        """
+        linhas = [self._montar_linha_lcto_ctb(item) for item in lancamentos]
+        dados = "\r\n".join(linhas) + "\r\n"
+        return self.importar(
+            leiautes=[leiaute],
+            dados=dados,
+            filtro=filtro,
+            pode_alterar_dados=pode_alterar_dados,
+            executar_validacao_final=executar_validacao_final,
+        )
